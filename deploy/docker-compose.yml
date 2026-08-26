@@ -49,9 +49,10 @@ services:
 
       # Mount config
       - ./nginx.conf:/etc/nginx/nginx.conf
-    ports:
-      # Nginx listening internally on port 80 -- mapped to 8080 on host
-      - 8080:80
+    expose:
+      # Nginx listening internally on port 80 -- Coolify's proxy routes the
+      # public domain to this over the internal network, no host bind needed
+      - 80
     depends_on:
       - web
 
