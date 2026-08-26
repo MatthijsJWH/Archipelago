@@ -15,7 +15,7 @@ services:
     entrypoint: python WebHost.py --config_override deploy/selflaunch.yaml
     volumes:
       # Mount application volume
-      - app_volume:/app
+      - app_data:/app
 
     # Expose on host network for access to dynamically mapped ports
     network_mode: host
@@ -33,10 +33,10 @@ services:
     # expects (cwd/config.yaml), since gunicorn has no equivalent of
     # --config_override. See the note on the multiworld service above for why
     # this doesn't rely on a bind mount.
-    entrypoint: ["sh", "-c", "cp deploy/config.yaml config.yaml && gunicorn -c deploy/gunicorn.conf.py"]
+    entrypoint: ["sh", "-c", "rm -rf config.yaml && cp deploy/config.yaml config.yaml && gunicorn -c deploy/gunicorn.conf.py"]
     volumes:
       # Mount application volume
-      - app_volume:/app
+      - app_data:/app
     environment:
       # Bind gunicorn on 8000
       - PORT=8000
@@ -50,7 +50,7 @@ services:
       dockerfile: nginx.Dockerfile
     volumes:
       # Mount application volume
-      - app_volume:/app
+      - app_data:/app
     expose:
       # Nginx listening internally on port 80 -- Coolify's proxy routes the
       # public domain to this over the internal network, no host bind needed
@@ -61,4 +61,4 @@ services:
 volumes:
   # Share application directory amongst multiworld and web services
   # (for access to log files and the like), and nginx (for static files)
-  app_volume:
+  app_data:
