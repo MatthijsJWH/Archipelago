@@ -14,8 +14,8 @@ services:
       - app_volume:/app
 
       # Mount configs
-      - ./example_config.yaml:/app/config.yaml
-      - ./example_selflaunch.yaml:/app/selflaunch.yaml
+      - ./config.yaml:/app/config.yaml
+      - ./selflaunch.yaml:/app/selflaunch.yaml
 
     # Expose on host network for access to dynamically mapped ports
     network_mode: host
@@ -35,8 +35,8 @@ services:
       - app_volume:/app
 
       # Mount configs
-      - ./example_config.yaml:/app/config.yaml
-      - ./example_gunicorn.conf.py:/app/gunicorn.conf.py
+      - ./config.yaml:/app/config.yaml
+      - ./gunicorn.conf.py:/app/gunicorn.conf.py
     environment:
       # Bind gunicorn on 8000
       - PORT=8000
@@ -48,7 +48,7 @@ services:
       - app_volume:/app
 
       # Mount config
-      - ./example_nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx.conf:/etc/nginx/nginx.conf
     ports:
       # Nginx listening internally on port 80 -- mapped to 8080 on host
       - 8080:80
