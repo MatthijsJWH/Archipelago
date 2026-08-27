@@ -11,8 +11,14 @@ services:
     # Config files are baked into the image under deploy/ (from the repo COPY
     # in the root Dockerfile) rather than bind-mounted, since Coolify's
     # docker-compose runner does not reliably materialize bind-mount sources
-    # from the repo checkout onto the host.
-    entrypoint: python WebHost.py --config_override deploy/selflaunch.yaml
+    # from the repo checkout onto the host. .apworld files placed in
+    # deploy/custom_worlds/ are copied into custom_worlds/ (where WebHost.py
+    # looks for them) on every start, so the persistent app_data volume
+    # always reflects what's baked into the current image.
+    entrypoint: >
+      sh -c "mkdir -p custom_worlds &&
+      for f in deploy/custom_worlds/*.apworld; do [ -e \"$$f\" ] && cp -f \"$$f\" custom_worlds/; done;
+      python WebHost.py --config_override deploy/selflaunch.yaml"
     volumes:
       # Mount application volume
       - app_data:/app
@@ -32,8 +38,12 @@ services:
     # from the image's baked-in deploy/ directory into the location WebHost.py
     # expects (cwd/config.yaml), since gunicorn has no equivalent of
     # --config_override. See the note on the multiworld service above for why
-    # this doesn't rely on a bind mount.
-    entrypoint: ["sh", "-c", "rm -rf config.yaml && cp deploy/config.yaml config.yaml && gunicorn -c deploy/gunicorn.conf.py"]
+    # this doesn't rely on a bind mount, and for the custom_worlds copy step.
+    entrypoint: >
+      sh -c "rm -rf config.yaml && cp deploy/config.yaml config.yaml &&
+      mkdir -p custom_worlds &&
+      for f in deploy/custom_worlds/*.apworld; do [ -e \"$$f\" ] && cp -f \"$$f\" custom_worlds/; done;
+      gunicorn -c deploy/gunicorn.conf.py"
     volumes:
       # Mount application volume
       - app_data:/app
