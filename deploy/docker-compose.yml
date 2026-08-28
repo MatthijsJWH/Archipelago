@@ -11,13 +11,18 @@ services:
     # Config files are baked into the image under deploy/ (from the repo COPY
     # in the root Dockerfile) rather than bind-mounted, since Coolify's
     # docker-compose runner does not reliably materialize bind-mount sources
-    # from the repo checkout onto the host.
-    # run_multiworld.sh additionally extracts a TLS cert for room servers
-    # from Coolify's acme.json before launching (see selflaunch.yaml).
-    entrypoint: ["sh", "deploy/run_multiworld.sh"]
+    # from the repo checkout onto the host. They're read from /deploy (a
+    # duplicate of deploy/ outside of /app - see the root Dockerfile) rather
+    # than the in-image deploy/ under /app, because the app_data volume below
+    # permanently shadows /app with whatever was there when it was first
+    # created; /deploy always reflects the image actually running.
+    # run_multiworld.sh copies .apworld files from deploy/custom_worlds/ into
+    # custom_worlds/ (where WebHost.py looks for them), and extracts a TLS
+    # cert for room servers from Coolify's acme.json, before launching.
+    entrypoint: ["sh", "/deploy/run_multiworld.sh"]
     volumes:
       # Mount application volume
-      - app_data_v2:/app
+      - app_data:/app
       # Coolify's Traefik proxy cert store, read-only, so rooms can terminate
       # TLS themselves (they bypass the proxy via network_mode: host below).
       - /data/coolify/proxy/acme.json:/acme.json:ro
@@ -34,14 +39,19 @@ services:
     # Use locally-built image
     pull_policy: never
     # Launch gunicorn targeting WebHost application. config.yaml is copied
-    # from the image's baked-in deploy/ directory into the location WebHost.py
-    # expects (cwd/config.yaml), since gunicorn has no equivalent of
-    # --config_override. See the note on the multiworld service above for why
-    # this doesn't rely on a bind mount.
-    entrypoint: ["sh", "-c", "rm -rf config.yaml && cp deploy/config.yaml config.yaml && gunicorn -c deploy/gunicorn.conf.py"]
+    # from /deploy into the location WebHost.py expects (cwd/config.yaml),
+    # since gunicorn has no equivalent of --config_override. See the note on
+    # the multiworld service above for why this reads from /deploy rather
+    # than the in-image deploy/ under /app, and for the custom_worlds copy
+    # step.
+    entrypoint: >
+      sh -c "rm -rf config.yaml && cp /deploy/config.yaml config.yaml &&
+      mkdir -p custom_worlds &&
+      for f in /deploy/custom_worlds/*.apworld; do [ -e \"$$f\" ] && cp -f \"$$f\" custom_worlds/; done;
+      gunicorn -c /deploy/gunicorn.conf.py"
     volumes:
       # Mount application volume
-      - app_data_v2:/app
+      - app_data:/app
     environment:
       # Bind gunicorn on 8000
       - PORT=8000
@@ -55,7 +65,7 @@ services:
       dockerfile: nginx.Dockerfile
     volumes:
       # Mount application volume
-      - app_data_v2:/app
+      - app_data:/app
     expose:
       # Nginx listening internally on port 80 -- Coolify's proxy routes the
       # public domain to this over the internal network, no host bind needed
@@ -65,8 +75,5 @@ services:
 
 volumes:
   # Share application directory amongst multiworld and web services
-  # (for access to log files and the like), and nginx (for static files).
-  # Renamed (again) to force a fresh seed from the current image: Docker only
-  # copies image content into a named volume when it's first created, so an
-  # existing volume won't pick up deploy/ changes like run_multiworld.sh.
-  app_data_v2:
+  # (for access to log files and the like), and nginx (for static files)
+  app_data:

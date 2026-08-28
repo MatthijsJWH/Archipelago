@@ -52,6 +52,14 @@ COPY . .
 
 COPY --from=cython-builder /build/*.so ./
 
+# Duplicate deploy/ to a path outside of /app. The deploy compose file mounts
+# a persistent volume over /app, which after its first creation permanently
+# shadows that path with whatever was there at the time - later image
+# rebuilds change /app/deploy on disk, but the running container never sees
+# it. /deploy lives outside the mount, so it always reflects the image that's
+# actually running.
+COPY deploy /deploy
+
 # Run ModuleUpdate
 RUN python ModuleUpdate.py -y
 
