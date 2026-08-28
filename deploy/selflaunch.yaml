@@ -11,3 +11,10 @@ GENERATORS: 3
 
 # Rooms will be spread across multiple processes
 HOSTERS: 4
+
+# Room websocket servers listen directly on the host network (see
+# docker-compose.yml), bypassing Coolify's proxy, so they terminate TLS
+# themselves using a cert extracted from Coolify's acme.json at startup
+# (see run_multiworld.sh / extract_cert.py).
+SELFLAUNCHCERT: /app/certs/fullchain.pem
+SELFLAUNCHKEY: /app/certs/privkey.pem

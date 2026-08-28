@@ -12,10 +12,15 @@ services:
     # in the root Dockerfile) rather than bind-mounted, since Coolify's
     # docker-compose runner does not reliably materialize bind-mount sources
     # from the repo checkout onto the host.
-    entrypoint: python WebHost.py --config_override deploy/selflaunch.yaml
+    # run_multiworld.sh additionally extracts a TLS cert for room servers
+    # from Coolify's acme.json before launching (see selflaunch.yaml).
+    entrypoint: ["sh", "deploy/run_multiworld.sh"]
     volumes:
       # Mount application volume
-      - app_data:/app
+      - app_data_v2:/app
+      # Coolify's Traefik proxy cert store, read-only, so rooms can terminate
+      # TLS themselves (they bypass the proxy via network_mode: host below).
+      - /data/coolify/proxy/acme.json:/acme.json:ro
 
     # Expose on host network for access to dynamically mapped ports
     network_mode: host
@@ -36,7 +41,7 @@ services:
     entrypoint: ["sh", "-c", "rm -rf config.yaml && cp deploy/config.yaml config.yaml && gunicorn -c deploy/gunicorn.conf.py"]
     volumes:
       # Mount application volume
-      - app_data:/app
+      - app_data_v2:/app
     environment:
       # Bind gunicorn on 8000
       - PORT=8000
@@ -50,7 +55,7 @@ services:
       dockerfile: nginx.Dockerfile
     volumes:
       # Mount application volume
-      - app_data:/app
+      - app_data_v2:/app
     expose:
       # Nginx listening internally on port 80 -- Coolify's proxy routes the
       # public domain to this over the internal network, no host bind needed
@@ -60,5 +65,8 @@ services:
 
 volumes:
   # Share application directory amongst multiworld and web services
-  # (for access to log files and the like), and nginx (for static files)
-  app_data:
+  # (for access to log files and the like), and nginx (for static files).
+  # Renamed (again) to force a fresh seed from the current image: Docker only
+  # copies image content into a named volume when it's first created, so an
+  # existing volume won't pick up deploy/ changes like run_multiworld.sh.
+  app_data_v2:
