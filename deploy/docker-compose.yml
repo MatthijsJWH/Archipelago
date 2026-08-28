@@ -16,15 +16,16 @@ services:
     # than the in-image deploy/ under /app, because the app_data volume below
     # permanently shadows /app with whatever was there when it was first
     # created; /deploy always reflects the image actually running.
-    # .apworld files placed in deploy/custom_worlds/ are copied from there
-    # into custom_worlds/ (where WebHost.py looks for them) on every start.
-    entrypoint: >
-      sh -c "mkdir -p custom_worlds &&
-      for f in /deploy/custom_worlds/*.apworld; do [ -e \"$$f\" ] && cp -f \"$$f\" custom_worlds/; done;
-      python WebHost.py --config_override /deploy/selflaunch.yaml"
+    # run_multiworld.sh copies .apworld files from deploy/custom_worlds/ into
+    # custom_worlds/ (where WebHost.py looks for them), and extracts a TLS
+    # cert for room servers from Coolify's acme.json, before launching.
+    entrypoint: ["sh", "/deploy/run_multiworld.sh"]
     volumes:
       # Mount application volume
       - app_data:/app
+      # Coolify's Traefik proxy cert store, read-only, so rooms can terminate
+      # TLS themselves (they bypass the proxy via network_mode: host below).
+      - /data/coolify/proxy/acme.json:/acme.json:ro
 
     # Expose on host network for access to dynamically mapped ports
     network_mode: host
